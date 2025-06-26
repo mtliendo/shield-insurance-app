@@ -33,3 +33,86 @@ Additionally, if peforming this workshop on your own, the following will be need
 ## Overview and Demo
 
 ![chatpage](./readmeImages/chat-page.png)
+
+## Frontend Setup
+
+Clone this repo by running the following command in your terminal:
+
+```sh
+git clone https://github.com/mtliendo/shield-insurance-app
+```
+
+from there, change into the directory and install the app dependencies:
+
+```sh
+cd shield-insurance-app && npm install
+```
+
+Open the app in your code editor and in your terminal run it with the following command:
+
+```sh
+npm run dev
+```
+
+## Workflow Setup Essentials
+
+Orkes powers this workflow. As such, much of the time spent in the workshop will be on understanding the power behind this workflow orchestration model.
+
+Fortunately, Orkes provides a ready-to-explore playground without needing any billing information.
+
+To begin, create a new account here: https://orkes.io/
+
+### Setting up global variables
+
+The first task is the `set_variable` task. This allows us to store variables that can be reused throughout our workflow:
+
+This workflow has `insurance_plans` information as such:
+
+```json
+[
+	{
+		"name": "Avenger-Level Property Protection",
+		"description": "Covers property damage caused by battles involving enhanced individuals, alien invasions, or government-sanctioned teams.",
+		"price_per_month": 249.99
+	},
+	{
+		"name": "Mutation Onset Support Plan",
+		"description": "Covers physical, psychological, and lifestyle changes resulting from spontaneous mutation, super-serum reactions, gamma exposure, or X-gene activation.",
+		"price_per_month": 149.99
+	},
+	{
+		"name": "Temporal Displacement Coverage",
+		"description": "For individuals who have been snapped, time-jumped, looped, or erased from the timeline and brought back.",
+		"price_per_month": 79.99
+	},
+	{
+		"name": "Mystic Mishap Protection",
+		"description": "Covers damages and injuries related to magical interference, spells gone wrong, mirror dimension accidents, or being temporarily turned into a goat.",
+		"price_per_month": 199.99
+	},
+	{
+		"name": "Intergalactic Invasion Insurance",
+		"description": "Covers fallout from alien attacks, abductions, or technology crashes from extraterrestrial entities.",
+		"price_per_month": 179.99
+	},
+	{
+		"name": "Shapeshifter Identity Defense",
+		"description": "Covers impersonation by Skrulls, variants, clones, or malfunctioning AI doubles.",
+		"price_per_month": 59.99
+	},
+	{
+		"name": "Heroic Liability Plan",
+		"description": "Protects heroes and vigilantes from lawsuits due to unintended civilian harm, property damage, or city ordinance violations.",
+		"price_per_month": 299.99
+	},
+	{
+		"name": "Mind Control Recovery Rider",
+		"description": "Covers the emotional and reputational fallout from being brainwashed, hexed, or puppeteered.",
+		"price_per_month": 129.99
+	}
+]
+```
+
+Additionally, we'll initialize it with an empty `message_history` array.
+
+Finally, we'll set the `plan_bundle` to also be an empty array.
