@@ -167,4 +167,6 @@ After looking through the data, your task is to return the a json array of objec
   response: 'your followup message response/question will go here.'
   reason: "your reasoning for why you chose to ask this question."
  }
+
+ <Criteria>
 ```
