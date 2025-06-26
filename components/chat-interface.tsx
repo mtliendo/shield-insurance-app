@@ -2,21 +2,25 @@
 
 import React, { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Send, Image, Loader2, Paperclip } from 'lucide-react'
+import { Send, Loader2 } from 'lucide-react'
 
 interface Message {
-	id: string
-	content: string
-	type: 'text' | 'image'
-	sender: 'user' | 'agent'
-	timestamp: Date
-	imageUrl?: string
+	source: 'user' | 'agent'
+	text: string
 }
 
-export default function ChatInterface() {
-	const [messages, setMessages] = useState<Message[]>([])
+interface ChatInterfaceProps {
+	messages: Message[]
+	onSendMessage: (message: string) => void
+	isWaitingForAgent?: boolean
+}
+
+export default function ChatInterface({
+	messages,
+	onSendMessage,
+	isWaitingForAgent,
+}: ChatInterfaceProps) {
 	const [inputMessage, setInputMessage] = useState('')
-	const [isWaitingForAgent, setIsWaitingForAgent] = useState(false)
 	const messagesContainerRef = useRef<HTMLDivElement>(null)
 
 	// Auto scroll to bottom when messages change
@@ -30,48 +34,10 @@ export default function ChatInterface() {
 		}
 	}, [messages])
 
-	// Add initial welcome message
-	useEffect(() => {
-		setMessages([
-			{
-				id: '1',
-				content:
-					"You've been successfully connected to Agent Coulson, your dedicated S.H.I.E.L.D. insurance specialist. I'll help you find the perfect coverage bundle for your unique situation. Just a moment while I review our available protection plans.",
-				type: 'text',
-				sender: 'agent',
-				timestamp: new Date(),
-			},
-		])
-	}, [])
-
 	const handleSendMessage = async () => {
 		if (!inputMessage.trim()) return
-
-		const newMessage: Message = {
-			id: Date.now().toString(),
-			content: inputMessage,
-			type: 'text',
-			sender: 'user',
-			timestamp: new Date(),
-		}
-
-		setMessages((prev) => [...prev, newMessage])
+		onSendMessage(inputMessage)
 		setInputMessage('')
-		setIsWaitingForAgent(true)
-
-		// Simulate agent response
-		setTimeout(() => {
-			const agentResponse: Message = {
-				id: (Date.now() + 1).toString(),
-				content:
-					"Thanks for reaching out! I can help you with that. Let me pull up some options that would work best for your situation. Can you tell me a bit more about what type of coverage you're looking for?",
-				type: 'text',
-				sender: 'agent',
-				timestamp: new Date(),
-			}
-			setMessages((prev) => [...prev, agentResponse])
-			setIsWaitingForAgent(false)
-		}, 1500)
 	}
 
 	const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -104,17 +70,17 @@ export default function ChatInterface() {
 				className="flex-1 overflow-y-auto p-4 bg-gray-50"
 			>
 				<AnimatePresence>
-					{messages.map((message) => (
+					{messages.map((message, index) => (
 						<motion.div
-							key={message.id}
+							key={index}
 							initial={{ opacity: 0, y: 10 }}
 							animate={{ opacity: 1, y: 0 }}
 							transition={{ duration: 0.3 }}
 							className={`flex mb-4 ${
-								message.sender === 'user' ? 'justify-end' : 'justify-start'
+								message.source === 'user' ? 'justify-end' : 'justify-start'
 							}`}
 						>
-							{message.sender === 'agent' && (
+							{message.source === 'agent' && (
 								<div className="w-8 h-8 rounded-full overflow-hidden mr-2 flex-shrink-0">
 									<img
 										src="/agent-avatar-small.png"
@@ -126,18 +92,12 @@ export default function ChatInterface() {
 
 							<div
 								className={`max-w-[80%] p-3 rounded-lg ${
-									message.sender === 'user'
+									message.source === 'user'
 										? 'bg-blue-600 text-white rounded-tr-none'
 										: 'bg-white shadow-sm rounded-tl-none'
 								}`}
 							>
-								<p>{message.content}</p>
-								<span className="text-xs opacity-70 block mt-1 text-right">
-									{message.timestamp.toLocaleTimeString([], {
-										hour: '2-digit',
-										minute: '2-digit',
-									})}
-								</span>
+								<p>{message.text}</p>
 							</div>
 						</motion.div>
 					))}
@@ -189,9 +149,14 @@ export default function ChatInterface() {
 
 						<button
 							onClick={handleSendMessage}
-							className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full flex items-center justify-center transition-colors bg-blue-600 text-white hover:bg-blue-700"
+							disabled={isWaitingForAgent}
+							className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full flex items-center justify-center transition-colors bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-400"
 						>
-							<Send size={16} />
+							{isWaitingForAgent ? (
+								<Loader2 size={16} className="animate-spin" />
+							) : (
+								<Send size={16} />
+							)}
 						</button>
 					</div>
 				</div>

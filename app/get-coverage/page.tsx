@@ -1,38 +1,178 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Navbar from '@/components/navbar'
 import Footer from '@/components/footer'
 import ChatInterface from '@/components/chat-interface'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Shield, Upload } from 'lucide-react'
+import { Shield } from 'lucide-react'
+
+import type { EventsChannel } from 'aws-amplify/data'
+import { events } from 'aws-amplify/data'
+import ConfigureAmplifyClientSide from '../configureAmplifyClientside'
+
+// Define types for chat messages and API responses to avoid using 'any'
+interface Message {
+	source: 'user' | 'agent'
+	text: string
+}
+
+interface WebSocketResponse {
+	id: string
+	type: string
+	event: string
+}
+
+const coverageOptions = [
+	{
+		number: '1',
+		title: 'Property Protection',
+		description: 'Coverage for damage from super-powered incidents',
+	},
+	{
+		number: '2',
+		title: 'Personal Safety',
+		description: 'Protection for enhanced individuals and their families',
+	},
+	{
+		number: '3',
+		title: 'Business Coverage',
+		description: 'Specialized plans for businesses in high-risk areas',
+	},
+	{
+		number: '4',
+		title: 'Special Events',
+		description: 'Coverage for gatherings and public events',
+	},
+]
 
 export default function GetCoveragePage() {
 	const [showChat, setShowChat] = useState(false)
+	const [messages, setMessages] = useState<Message[]>([])
+	const [workflowId, setWorkflowId] = useState<string | null>(null)
+	const [isWaitingForAgent, setIsWaitingForAgent] = useState(false)
+	const sub = useRef<any>(null) // Using any to avoid complex subscription types for now
 
-	const coverageOptions = [
-		{
-			number: '1',
-			title: 'Property Protection',
-			description: 'Coverage for damage from super-powered incidents',
-		},
-		{
-			number: '2',
-			title: 'Personal Safety',
-			description: 'Protection for enhanced individuals and their families',
-		},
-		{
-			number: '3',
-			title: 'Business Coverage',
-			description: 'Specialized plans for businesses in high-risk areas',
-		},
-		{
-			number: '4',
-			title: 'Special Events',
-			description: 'Coverage for gatherings and public events',
-		},
-	]
+	const initializeWorkflow = async () => {
+		setIsWaitingForAgent(true)
+		try {
+			const response = await fetch('/api/start-orkes-workflow', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				// You can pass initial messages if needed
+				body: JSON.stringify({ messages: [] }),
+			})
+
+			if (!response.ok) {
+				throw new Error('Failed to start workflow')
+			}
+
+			const { workflowId: newWorkflowId } = await response.json()
+			setWorkflowId(newWorkflowId)
+			return newWorkflowId
+		} catch (error) {
+			console.error('Failed to initialize workflow:', error)
+			setMessages((prev) => [
+				...prev,
+				{
+					source: 'agent',
+					text: 'Sorry, I was unable to connect with the S.H.I.E.L.D. network. Please try again in a moment.',
+				},
+			])
+			return null
+		} finally {
+			setIsWaitingForAgent(false)
+		}
+	}
+
+	const handleStartChat = () => {
+		setShowChat(true)
+		setMessages([
+			{
+				source: 'agent',
+				text: "You've been successfully connected to Agent Coulson, your dedicated S.H.I.E.L.D. insurance specialist. I'll help you find the perfect coverage bundle for your unique situation. Just a moment while I review our available protection plans.",
+			},
+		])
+		initializeWorkflow()
+	}
+
+	const handleSendMessage = async (userMessage: string) => {
+		if (!workflowId) {
+			console.error('Cannot send message, workflowId is not set.')
+			return
+		}
+
+		// Optimistically add user message to the chat
+		setMessages((prev) => [...prev, { source: 'user', text: userMessage }])
+		setIsWaitingForAgent(true)
+
+		try {
+			await fetch('/api/continue-orkes-conversation', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({ userMessage, workflowId }),
+			})
+		} catch (error) {
+			console.error('Failed to send message:', error)
+			// Optionally, show an error message in the chat
+			setMessages((prev) => [
+				...prev,
+				{
+					source: 'agent',
+					text: "I'm having trouble sending your message. Please try again.",
+				},
+			])
+			setIsWaitingForAgent(false)
+		}
+	}
+
+	useEffect(() => {
+		let channel: EventsChannel
+
+		const connectAndSubscribe = async () => {
+			if (!process.env.NEXT_PUBLIC_USERNAME) {
+				console.error('NEXT_PUBLIC_USERNAME is not set.')
+				return
+			}
+			channel = await events.connect(
+				`mcu-workshop/${process.env.NEXT_PUBLIC_USERNAME}`
+			)
+			console.log('the channel is', channel)
+
+			if (!sub.current) {
+				sub.current = channel.subscribe({
+					next: (data: WebSocketResponse) => {
+						console.log('received', data)
+						if (data && data.event) {
+							setIsWaitingForAgent(false)
+							setMessages((prev) => [
+								...prev,
+								{ source: 'agent', text: data.event },
+							])
+						}
+					},
+					error: (err) => console.error('error', err),
+				})
+			}
+		}
+
+		if (showChat) {
+			connectAndSubscribe()
+		}
+
+		return () => {
+			sub.current?.unsubscribe()
+			sub.current = null
+			if (channel) {
+				channel.close()
+			}
+		}
+	}, [showChat])
 
 	return (
 		<div className="min-h-screen bg-gray-50">
@@ -70,7 +210,7 @@ export default function GetCoveragePage() {
 											plan tailored to your needs.
 										</p>
 										<Button
-											onClick={() => setShowChat(true)}
+											onClick={handleStartChat}
 											size="lg"
 											className="bg-red-600 hover:bg-red-700"
 										>
@@ -82,7 +222,11 @@ export default function GetCoveragePage() {
 							) : (
 								<div className="flex justify-center items-start">
 									<div className="w-full max-w-xl h-[600px]">
-										<ChatInterface />
+										<ChatInterface
+											messages={messages}
+											onSendMessage={handleSendMessage}
+											isWaitingForAgent={isWaitingForAgent}
+										/>
 									</div>
 								</div>
 							)}
